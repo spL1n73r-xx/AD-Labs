@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 ERROR=$(tput setaf 1; echo -n "[!]"; tput sgr0)
 OK=$(tput setaf 2; echo -n "[✓]"; tput sgr0)
@@ -9,11 +9,10 @@ LAB=
 PROVIDER=
 METHOD=
 JOB=
-PROVIDERS="virtualbox vmware azure proxmox"
-LABS=$(ls -A ad/ |grep -v 'TEMPLATE')
-TASKS="check install start stop status restart destroy disablevagrant enablevagrant"
+PROVIDERS="aws"
+LABS=$(ls -A Labs/ |grep -v 'TEMPLATE')
+TASKS="check install start stop restart status destroy"
 ANSIBLE_PLAYBOOKS="edr.yml build.yml ad-servers.yml ad-parent_domain.yml ad-child_domain.yml ad-members.yml ad-trusts.yml ad-data.yml ad-gmsa.yml laps.yml ad-relations.yml adcs.yml ad-acl.yml servers.yml security.yml vulnerabilities.yml reboot.yml elk.yml sccm-install.yml sccm-config.yml"
-METHODS="local docker"
 ANSIBLE_ONLY=0
 ANSIBLE_PLAYBOOK=
 GOAD_VAGRANT_OPTIONS=
@@ -37,7 +36,6 @@ print_usage() {
   for p in $PROVIDERS;  do
     echo "   - $p";
   done
-  echo "${INFO} -m : method must be one of the following (optional, default : local):"
   echo "   - local : to use local ansible install (default)";
   echo "   - docker : to use docker ansible install";
   echo "${INFO} -a : to run only ansible on install (optional)";
@@ -129,10 +127,10 @@ while getopts t:l:p:m:ar:e:h flag
   fi
 
 # check if the lab provider folder exist
-if [[ -d "ad/$LAB/providers/$PROVIDER" ]]; then
-   echo "${OK} folder ad/$LAB/providers/$PROVIDER found"
+if [[ -d  "Labs/$LAB/providers/$PROVIDER" ]]; then
+   echo "${OK} folder Labs/$LAB/providers/$PROVIDER found"
 else
-   echo "${ERROR} folder ad/$LAB/providers/$PROVIDER not found"
+   echo "${ERROR} folder Labs/$LAB/providers/$PROVIDER not found"
    exit 1
 fi
 
@@ -142,7 +140,7 @@ print_azure_info() {
     echo "Ubuntu jumpbox IP: $public_ip"
 
     echo "You can now connect to the jumpbox using the following command:"
-    echo "ssh -i ad/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem goad@$public_ip"
+    echo "ssh -i Labs/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem goad@$public_ip"
     echo -e "\n\n"
 
     echo "${OK} ssh/config :"
@@ -150,7 +148,7 @@ print_azure_info() {
     echo "    Hostname $public_ip"
     echo "    User goad"
     echo "    Port 22"
-    echo "    IdentityFile $CURRENT_DIR/ad/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem"
+    echo "    IdentityFile $CURRENT_DIR Labs/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem"
 }
 
 install_providing(){
@@ -159,7 +157,7 @@ install_providing(){
 
   case $provider in
     "virtualbox"|"vmware")
-        cd "ad/$lab/providers/$provider"
+        cd  Labs/$lab/providers/$provider"
         echo "${OK} launch vagrant"
         GOAD_VAGRANT_OPTIONS=$GOAD_VAGRANT_OPTIONS vagrant up
         result=$?
@@ -171,8 +169,8 @@ install_providing(){
         cd -
       ;;
     "proxmox")
-      if [ -d "ad/$lab/providers/$provider/terraform" ]; then
-        cd "ad/$lab/providers/$provider/terraform"
+      if [ -d  Labs/$lab/providers/$provider/terraform" ]; then
+        cd  Labs/$lab/providers/$provider/terraform"
         echo "${OK} Initializing Terraform..."
         terraform init
 
@@ -193,13 +191,13 @@ install_providing(){
         echo "${OK} Ready to launch provisioning"
         cd -
       else
-        echo "${ERROR} folder ad/$lab/providers/$provider/terraform not found"
+        echo "${ERROR} folder Labs/$lab/providers/$provider/terraform not found"
         exit 1
       fi
       ;;
     "azure")
-      if [ -d "ad/$lab/providers/$provider/terraform" ]; then
-          cd "ad/$lab/providers/$provider/terraform"
+      if [ -d  Labs/$lab/providers/$provider/terraform" ]; then
+          cd  Labs/$lab/providers/$provider/terraform"
           echo "${OK} Initializing Terraform..."
           terraform init
 
@@ -224,14 +222,14 @@ install_providing(){
           cd -
 
           echo "${OK} Rsync goad to jumpbox"
-          rsync -a --exclude-from='.gitignore' -e "ssh -o 'StrictHostKeyChecking no' -i $CURRENT_DIR/ad/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" "$CURRENT_DIR/" goad@$public_ip:~/GOAD/
+          rsync -a --exclude-from='.gitignore' -e "ssh -o 'StrictHostKeyChecking no' -i $CURRENT_DIR Labs/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" "$CURRENT_DIR/" goad@$public_ip:~/G Labs/
 
           echo "${OK} Running setup script on jumpbox..."
-          ssh -o "StrictHostKeyChecking no" -i "ad/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" goad@$public_ip 'bash -s' <scripts/setup_azure.sh
+          ssh -o "StrictHostKeyChecking no" -i  Labs/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" goad@$public_ip 'bash -s' <scripts/setup_azure.sh
 
           echo "${OK} Ready to launch provisioning"
       else
-        echo "${ERROR} folder ad/$lab/providers/$provider/terraform not found"
+        echo "${ERROR} folder Labs/$lab/providers/$provider/terraform not found"
         exit 1
       fi
       ;;
@@ -253,7 +251,7 @@ install_provisioning(){
                 cd -
               else
                 cd ansible
-                ansible-playbook -i ../ad/$lab/data/inventory -i ../ad/$lab/providers/$provider/inventory $ANSIBLE_PLAYBOOK
+                ansible-playbook -i .. Labs/$lab/data/inventory -i .. Labs/$lab/providers/$provider/inventory $ANSIBLE_PLAYBOOK
                 cd -
               fi
             ;;
@@ -275,35 +273,35 @@ install_provisioning(){
               fi
               if [ -z $ANSIBLE_PLAYBOOK ]; then
                 echo "${OK} Start provisioning from docker"
-                $use_sudo docker run -ti --rm --network host -h goadansible -v $(pwd):/goad -w /goad/ansible goadansible /bin/bash -c "LAB=$lab PROVIDER=$provider ../scripts/provisionning.sh"
+                $use_sudo docker run -ti --rm --network host -h goadansible -v $(pwd):/goad -w /g Labs/ansible goadansible /bin/bash -c "LAB=$lab PROVIDER=$provider ../scripts/provisionning.sh"
               else
               echo "${OK} Start provisioning from docker"
-                $use_sudo docker run -ti --rm --network host -h goadansible -v $(pwd):/goad -w /goad/ansible goadansible /bin/bash -c "ansible-playbook -i ../ad/$lab/data/inventory -i ../ad/$lab/providers/$provider/inventory $ANSIBLE_PLAYBOOK"
+                $use_sudo docker run -ti --rm --network host -h goadansible -v $(pwd):/goad -w /g Labs/ansible goadansible /bin/bash -c "ansible-playbook -i .. Labs/$lab/data/inventory -i .. Labs/$lab/providers/$provider/inventory $ANSIBLE_PLAYBOOK"
               fi
             ;;
         esac
       ;;
     "azure")
 
-          cd "ad/$lab/providers/$provider/terraform"
+          cd  Labs/$lab/providers/$provider/terraform"
           public_ip=$(terraform output -raw ubuntu-jumpbox-ip)
           cd -
           
-          rsync -a --exclude-from='.gitignore' -e "ssh -o 'StrictHostKeyChecking no' -i $CURRENT_DIR/ad/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" "$CURRENT_DIR/" goad@$public_ip:~/GOAD/
+          rsync -a --exclude-from='.gitignore' -e "ssh -o 'StrictHostKeyChecking no' -i $CURRENT_DIR Labs/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" "$CURRENT_DIR/" goad@$public_ip:~/G Labs/
 
            case $method in
             "local")
               if [ -z $ANSIBLE_PLAYBOOK ]; then
-                ssh -tt -o "StrictHostKeyChecking no" -i "$CURRENT_DIR/ad/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" goad@$public_ip << EOF
-                  cd /home/goad/GOAD/ansible
+                ssh -tt -o "StrictHostKeyChecking no" -i "$CURRENT_DIR Labs/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" goad@$public_ip << EOF
+                  cd /home/g Labs/G Labs/ansible
                   export LAB=$lab PROVIDER=$provider
                   ../scripts/provisionning.sh
                   exit
 EOF
               else
-              ssh -tt -o "StrictHostKeyChecking no" -i "$CURRENT_DIR/ad/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" goad@$public_ip << EOF
-                  cd /home/goad/GOAD/ansible
-                  ansible-playbook -i ../ad/$lab/data/inventory -i ../ad/$lab/providers/$provider/inventory $ANSIBLE_PLAYBOOK
+              ssh -tt -o "StrictHostKeyChecking no" -i "$CURRENT_DIR Labs/$lab/providers/$provider/ssh_keys/ubuntu-jumpbox.pem" goad@$public_ip << EOF
+                  cd /home/g Labs/G Labs/ansible
+                  ansible-playbook -i .. Labs/$lab/data/inventory -i .. Labs/$lab/providers/$provider/inventory $ANSIBLE_PLAYBOOK
                   exit
 EOF
               fi
@@ -334,7 +332,7 @@ disablevagrant(){
         case $METHOD in
           "local")
               cd ansible
-              ansible-playbook -i ../ad/$LAB/providers/$PROVIDER/inventory_disablevagrant disable_vagrant.yml
+              ansible-playbook -i .. Labs/$LAB/providers/$PROVIDER/inventory_disablevagrant disable_vagrant.yml
               cd -
             ;;
           "docker")
@@ -354,7 +352,7 @@ disablevagrant(){
                 echo "${OK} Container goadansible creation complete"
               fi
               echo "${OK} Start provisioning from docker"
-              $use_sudo docker run -ti --rm --network host -h goadansible -v $(pwd):/goad -w /goad/ansible goadansible /bin/bash -c "ansible-playbook -i ../ad/$LAB/providers/$PROVIDER/inventory_disablevagrant disable_vagrant.yml"
+              $use_sudo docker run -ti --rm --network host -h goadansible -v $(pwd):/goad -w /g Labs/ansible goadansible /bin/bash -c "ansible-playbook -i .. Labs/$LAB/providers/$PROVIDER/inventory_disablevagrant disable_vagrant.yml"
             ;;
         esac
       ;;
@@ -370,7 +368,7 @@ enablevagrant(){
         case $METHOD in
           "local")
               cd ansible
-              ansible-playbook -i ../ad/$LAB/providers/$PROVIDER/inventory_disablevagrant enable_vagrant.yml
+              ansible-playbook -i .. Labs/$LAB/providers/$PROVIDER/inventory_disablevagrant enable_vagrant.yml
               cd -
             ;;
           "docker")
@@ -390,7 +388,7 @@ enablevagrant(){
                 echo "${OK} Container goadansible creation complete"
               fi
               echo "${OK} Start provisioning from docker"
-              $use_sudo docker run -ti --rm --network host -h goadansible -v $(pwd):/goad -w /goad/ansible goadansible /bin/bash -c "ansible-playbook -i ../ad/$LAB/providers/$PROVIDER/inventory_disablevagrant enable_vagrant.yml"
+              $use_sudo docker run -ti --rm --network host -h goadansible -v $(pwd):/goad -w /g Labs/ansible goadansible /bin/bash -c "ansible-playbook -i .. Labs/$LAB/providers/$PROVIDER/inventory_disablevagrant enable_vagrant.yml"
             ;;
         esac
       ;;
@@ -425,7 +423,7 @@ check(){
 start(){
   case $PROVIDER in
     "virtualbox"|"vmware")
-          cd "ad/$LAB/providers/$PROVIDER"
+          cd  Labs/$LAB/providers/$PROVIDER"
           echo "${OK} start vms"
           GOAD_VAGRANT_OPTIONS=$GOAD_VAGRANT_OPTIONS vagrant up
           cd -
@@ -435,8 +433,8 @@ start(){
         (echo >&2 "${ERROR} qm not found in your PATH")
         exit 1
       else
-        if [ -d "ad/$LAB/providers/$PROVIDER/terraform" ]; then
-          vms=$(cat ad/$LAB/providers/$PROVIDER/terraform/*.tf| grep -E 'name = ".*"'|cut -d '"' -f 2)
+        if [ -d  Labs/$LAB/providers/$PROVIDER/terraform" ]; then
+          vms=$(cat Labs/$LAB/providers/$PROVIDER/terraform/*.tf| grep -E 'name = ".*"'|cut -d '"' -f 2)
           for vm in "${vms[@]}"
           do
             id=$(qm list | grep $vm  | awk '{print $1}')
@@ -445,7 +443,7 @@ start(){
             qm start "$id"
           done
         else
-          echo "${ERROR} folder ad/$LAB/providers/$PROVIDER/terraform not found"
+          echo "${ERROR} folder Labs/$LAB/providers/$PROVIDER/terraform not found"
           exit 1
         fi
       fi
@@ -460,7 +458,7 @@ start(){
 stop(){
   case $PROVIDER in
     "virtualbox"|"vmware")
-          cd "ad/$LAB/providers/$PROVIDER"
+          cd  Labs/$LAB/providers/$PROVIDER"
           echo "${OK} stop vms"
           GOAD_VAGRANT_OPTIONS=$GOAD_VAGRANT_OPTIONS vagrant halt
           cd -
@@ -470,8 +468,8 @@ stop(){
         (echo >&2 "${ERROR} qm not found in your PATH")
         exit 1
       else
-        if [ -d "ad/$LAB/providers/$PROVIDER/terraform" ]; then
-          vms=$(cat ad/$LAB/providers/$PROVIDER/terraform/*.tf| grep -E 'name = ".*"'|cut -d '"' -f 2)
+        if [ -d  Labs/$LAB/providers/$PROVIDER/terraform" ]; then
+          vms=$(cat Labs/$LAB/providers/$PROVIDER/terraform/*.tf| grep -E 'name = ".*"'|cut -d '"' -f 2)
           for vm in "${vms[@]}"
           do
             id=$(qm list | grep $vm  | awk '{print $1}')
@@ -480,7 +478,7 @@ stop(){
             qm stop "$id" && qm wait "$id"
           done
         else
-          echo "${ERROR} folder ad/$LAB/providers/$PROVIDER/terraform not found"
+          echo "${ERROR} folder Labs/$LAB/providers/$PROVIDER/terraform not found"
           exit 1
         fi
       fi
@@ -495,7 +493,7 @@ stop(){
 restart(){
   case $PROVIDER in
     "virtualbox"|"vmware")
-          cd "ad/$LAB/providers/$PROVIDER"
+          cd  Labs/$LAB/providers/$PROVIDER"
           echo "${OK} restart start vms"
           vagrant reload
           cd -
@@ -505,8 +503,8 @@ restart(){
         (echo >&2 "${ERROR} qm not found in your PATH")
         exit 1
       else
-        if [ -d "ad/$LAB/providers/$PROVIDER/terraform" ]; then
-          vms=$(cat ad/$LAB/providers/$PROVIDER/terraform/*.tf| grep -E 'name = ".*"'|cut -d '"' -f 2)
+        if [ -d  Labs/$LAB/providers/$PROVIDER/terraform" ]; then
+          vms=$(cat Labs/$LAB/providers/$PROVIDER/terraform/*.tf| grep -E 'name = ".*"'|cut -d '"' -f 2)
           for vm in "${vms[@]}"
           do
             id=$(qm list | grep $vm  | awk '{print $1}')
@@ -517,7 +515,7 @@ restart(){
             qm start "$id"
           done
         else
-          echo "${ERROR} folder ad/$LAB/providers/$PROVIDER/terraform not found"
+          echo "${ERROR} folder Labs/$LAB/providers/$PROVIDER/terraform not found"
           exit 1
         fi
       fi
@@ -532,7 +530,7 @@ restart(){
 destroy(){
   case $PROVIDER in
     "virtualbox"|"vmware")
-          cd "ad/$LAB/providers/$PROVIDER"
+          cd  Labs/$LAB/providers/$PROVIDER"
           echo "${OK} destroy the lab"
           read -r -p "Are you sure? [y/N] " response
           case "$response" in
@@ -546,12 +544,12 @@ destroy(){
           cd -
       ;;
     "proxmox"|"azure")
-      if [ -d "ad/$LAB/providers/$PROVIDER/terraform" ]; then
-        cd "ad/$LAB/providers/$PROVIDER/terraform"
+      if [ -d  Labs/$LAB/providers/$PROVIDER/terraform" ]; then
+        cd  Labs/$LAB/providers/$PROVIDER/terraform"
         echo "${OK} Destroy infrastructure..."
         terraform destroy
       else
-        echo "${ERROR} folder ad/$LAB/providers/$PROVIDER/terraform not found"
+        echo "${ERROR} folder Labs/$LAB/providers/$PROVIDER/terraform not found"
         exit 1
       fi
       ;;
@@ -560,24 +558,19 @@ destroy(){
 
 status(){
   case $PROVIDER in
-    "virtualbox"|"vmware")
-          cd "ad/$LAB/providers/$PROVIDER"
-          GOAD_VAGRANT_OPTIONS=$GOAD_VAGRANT_OPTIONS vagrant status
-          cd -
-      ;;
     "proxmox")
       if ! which qm >/dev/null; then
         (echo >&2 "${ERROR} qm not found in your PATH")
         exit 1
       else
-        if [ -d "ad/$LAB/providers/$PROVIDER/terraform" ]; then
-          vms=$(cat ad/$LAB/providers/$PROVIDER/terraform/*.tf| grep -E 'name = ".*"'|cut -d '"' -f 2)
+        if [ -d  Labs/$LAB/providers/$PROVIDER/terraform" ]; then
+          vms=$(cat Labs/$LAB/providers/$PROVIDER/terraform/*.tf| grep -E 'name = ".*"'|cut -d '"' -f 2)
           for vm in "${vms[@]}"
           do
             qm list | grep $vm
           done
         else
-          echo "${ERROR} folder ad/$LAB/providers/$PROVIDER/terraform not found"
+          echo "${ERROR} folder Labs/$LAB/providers/$PROVIDER/terraform not found"
           exit 1
         fi
       fi
@@ -586,16 +579,6 @@ status(){
       az vm list -g $LAB -d --output table
       ;;
   esac
-}
-
-snapshot() {
-  # TODO : snapshot
-  echo "not implemeneted"
-}
-
-reset() {
-  # TODO : reset to last snapshot
-  echo "not implemeneted"
 }
 
 main() {
